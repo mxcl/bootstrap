@@ -1,6 +1,6 @@
 #!/bin/sh
 
-sh <(curl -Ssf https://pkgx.sh)
+curl -Ssf https://pkgx.sh | sh
 
 f=$(mktemp)
 
