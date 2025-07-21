@@ -37,12 +37,12 @@ install uvx
 cat <<EOF > $f
 #!/bin/sh
 
-if [ $0 == "rustup" && $1 == "init" ]; then
+if [ \$0 = "rustup" ] && [ \$1 = "init" ]; then
   shift
-  exec /usr/local/bin/pkgx rustup-init "$@"
+  exec /usr/local/bin/pkgx rustup-init "\$@"
 fi
 
-if [ ! -f "$HOME/.cargo/bin/rustup" ]; then
+if [ ! -f "\$HOME/.cargo/bin/rustup" ]; then
   echo "a \`rustup\` toolchain has not been installed" >&2
   echo "run: \`rustup init\`" >&2
   exit 3
@@ -50,7 +50,7 @@ fi
 
 source ~/.cargo/env
 
-exec ~/.cargo/bin/"$0" "$@"
+exec "\$HOME/.cargo/bin/\$(basename \$0)" "\$@"
 EOF
 sudo install -m 755 $f /usr/local/bin/rustup
 sudo install -m 755 $f /usr/local/bin/cargo
