@@ -1,0 +1,27 @@
+#!/bin/sh
+
+if [ "$(id -u)" -eq 0 ]; then
+  echo "panic: do not run as root" >&2
+  exit 1
+fi
+
+if [ -x "/opt/homebrew/bin/brew" ]; then
+  gum format "# Updating Homebrew"
+  /opt/homebrew/bin/brew update
+  /opt/homebrew/bin/brew upgrade
+fi
+
+if [ -x /opt/homebrew/bin/stew ]; then
+  gum format "# Updating Stew"
+  /opt/homebrew/bin/stew upgrade --all
+fi
+
+gum format "# Updating Pythons"
+/usr/local/bin/uv python upgrade
+
+if [ -x "$HOME/.cargo/bin/cargo" ]; then
+  gum format "# Updating Rust"
+  "$HOME/.cargo/bin/rustup" update
+fi
+
+_SUDO=sudo
