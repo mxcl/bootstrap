@@ -25,7 +25,8 @@ for x in 3.9 3.10 3.11 3.12 3.13; do
   echo "#!/usr/local/bin/pkgx -q! python@$x" > $f
   sudo install -m 755 $f /usr/local/bin/python$x
 
-  echo '#!/usr/local/bin/pkgx -q! python@3.9 -m pip' > $f
+  echo '#!/bin/sh' > $f
+  echo "exec /usr/local/bin/pkgx python@$x -m pip \"$@\"" >> $f
   sudo install -m 755 $f /usr/local/bin/pip$x
 done
 
