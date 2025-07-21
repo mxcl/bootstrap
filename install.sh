@@ -37,9 +37,14 @@ install uvx
 cat <<EOF > $f
 #!/bin/sh
 
-if [ \$0 = "rustup" ] && [ \$1 = "init" ]; then
+if [ \$(basename \$0) = "rustup" ] && [ \$1 = "init" ]; then
   shift
-  exec /usr/local/bin/pkgx rustup-init "\$@"
+
+  # prevent rustup-init from warning that rust is already installed when it is just us
+  export RUSTUP_INIT_SKIP_PATH_CHECK=yes
+
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --no-modify-path
+  exit $?
 fi
 
 if [ ! -f "\$HOME/.cargo/bin/rustup" ]; then
@@ -55,4 +60,3 @@ EOF
 sudo install -m 755 $f /usr/local/bin/rustup
 sudo install -m 755 $f /usr/local/bin/cargo
 sudo install -m 755 $f /usr/local/bin/rustc
-
