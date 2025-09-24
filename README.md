@@ -2,6 +2,10 @@
 
 Install stubs for all dev tools that people use.
 
+```sh
+curl https://raw.githubusercontent.com/mxcl/bootstrap/refs/heads/main/install.sh | sh
+```
+
 * Uses `rustup` to manage rust via convenient proxy stubs
 * Provides magic `python3.x` and `pip3.x` stubs
 * Attempts to not install tools like pip or npm via pkgx so that those tools manage themselves
