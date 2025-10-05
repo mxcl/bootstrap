@@ -30,6 +30,15 @@ for x in 3.9 3.10 3.11 3.12 3.13; do
   sudo install -m 755 $f /usr/local/bin/pip$x
 done
 
+# use pkgx git instead of failure if no Xcode-CLT installed
+echo '#!/bin/sh' > $f
+echo 'if [ -x /Library/Developer/CommandLineTools/usr/bin/git ]; then' >> $f
+echo '  exec /Library/Developer/CommandLineTools/usr/bin/git "$@"' >> $f
+echo 'else' >> $f
+echo '  exec /usr/local/bin/pkgx git "$@"' >> $f
+echo 'fi' >> $f
+sudo install -m 755 $f /usr/local/bin/git
+
 install uv
 install uvx
 
