@@ -145,6 +145,24 @@ if [ ! -w "\${TARGET_DIR}" ]; then
   exit 1
 fi
 
+if [ ! -d /opt/homebrew ]; then
+  user="\${SUDO_USER:-\${USER:-\$(id -un)}}"
+
+  install -d -o root -g wheel -m 0755 /opt/homebrew
+  for x in \
+    bin etc include lib sbin opt Cellar Caskroom Frameworks \
+    share/zsh/site-functions var/homebrew/linked var/log
+  do
+    mkdir -p "/opt/homebrew/\${x}"
+  done
+
+  chown -R "\${user}:admin" /opt/homebrew
+  chmod -R ug=rwx,go=rx /opt/homebrew
+  chmod go-w /opt/homebrew/share/zsh /opt/homebrew/share/zsh/site-functions
+
+  chown -R "\${user}:admin" /opt/homebrew
+fi
+
 write_stub() {
   target="\$1"
   cat >"\${target}"
