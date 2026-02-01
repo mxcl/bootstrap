@@ -114,6 +114,7 @@ emit_upgrade_content() {
       continue
     fi
     name="${base%.*}"
+    printf '\ngum format "# Checking %s"\n' "${name}"
     printf '\nif version="$(outdated_%s)"; then\n' "${name}"
     printf '  install_%s "${version}"\n' "${name}"
     printf 'fi\n'
