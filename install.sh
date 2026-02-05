@@ -156,10 +156,15 @@ echo '# Installables'
 if [ -f "${script_dir}/installables/yoink.sh" ]; then
   printf '%q\n' "${script_dir}/installables/yoink.sh"
 fi
+if [ -f "${script_dir}/installables/deno.sh" ]; then
+  printf '%q\n' "${script_dir}/installables/deno.sh"
+fi
 for x in "$script_dir"/installables/*; do
-  if [ "$(basename "${x}")" = "yoink.sh" ]; then
+  case "$(basename "${x}")" in
+  yoink.sh|deno.sh)
     continue
-  fi
+    ;;
+  esac
   printf '%q\n' "$x"
 done
 
