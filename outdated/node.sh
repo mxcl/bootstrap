@@ -8,10 +8,17 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "${script_path}")" && pwd)"
 
 bin="/usr/local/bin/node"
 
-latest="$(
-  curl -fsSL https://nodejs.org/dist/index.json |
-    /usr/bin/jq -r '.[0].version'
-)"
+yoink_bin="/usr/local/bin/yoink"
+if ! [ -x "${yoink_bin}" ]; then
+  if command -v yoink >/dev/null 2>&1; then
+    yoink_bin="$(command -v yoink)"
+  else
+    echo "yoink not installed; unable to check nodejs/node" >&2
+    exit 2
+  fi
+fi
+
+latest="$("${yoink_bin}" -jI nodejs/node | /usr/bin/jq -r '.tag')"
 
 if [ -z "${latest}" ] || [ "${latest}" = "null" ]; then
   echo "Unable to determine latest node version" >&2
