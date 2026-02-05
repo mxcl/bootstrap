@@ -24,4 +24,9 @@ if [ -z "${downloaded}" ] || ! [ -f "${downloaded}" ]; then
   exit 1
 fi
 
-$_SUDO install -m 755 "${downloaded}" /usr/local/bin/direnv
+tmpbin="${tmpdir}/direnv"
+if [ "${downloaded}" != "${tmpbin}" ]; then
+  mv "${downloaded}" "${tmpbin}"
+fi
+
+$_SUDO install -m 755 "${tmpbin}" /usr/local/bin/direnv
