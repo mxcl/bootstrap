@@ -11,4 +11,17 @@ if ! [ -x "${yoink_bin}" ]; then
   fi
 fi
 
-$_SUDO "${yoink_bin}" -C /usr/local/bin denoland/deno
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "${tmpdir}"' EXIT
+
+downloaded="$(
+  "${yoink_bin}" -C "${tmpdir}" denoland/deno |
+    /usr/bin/head -n 1
+)"
+
+if [ -z "${downloaded}" ] || ! [ -f "${downloaded}" ]; then
+  echo "deno binary not found after download" >&2
+  exit 1
+fi
+
+$_SUDO install -m 755 "${downloaded}" /usr/local/bin/deno
