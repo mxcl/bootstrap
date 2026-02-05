@@ -153,7 +153,13 @@ fi
 
 echo
 echo '# Installables'
+if [ -f "${script_dir}/installables/yoink.sh" ]; then
+  printf '%q\n' "${script_dir}/installables/yoink.sh"
+fi
 for x in "$script_dir"/installables/*; do
+  if [ "$(basename "${x}")" = "yoink.sh" ]; then
+    continue
+  fi
   printf '%q\n' "$x"
 done
 
