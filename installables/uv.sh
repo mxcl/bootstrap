@@ -1,25 +1,30 @@
 #!/bin/sh
 set -eo pipefail
 
-os="$(uname -s)"
-arch="$(uname -m)"
-
-case "${os}:${arch}" in
-  Darwin:arm64) target="aarch64-apple-darwin" ;;
-  Darwin:x86_64) target="x86_64-apple-darwin" ;;
-  Linux:aarch64|Linux:arm64) target="aarch64-unknown-linux-gnu" ;;
-  Linux:x86_64) target="x86_64-unknown-linux-gnu" ;;
-  *)
-    echo "Unsupported platform: ${os} ${arch}" >&2
+yoink_bin="/usr/local/bin/yoink"
+if ! [ -x "${yoink_bin}" ]; then
+  if command -v yoink >/dev/null 2>&1; then
+    yoink_bin="$(command -v yoink)"
+  else
+    echo "yoink not installed; run installables/yoink.sh" >&2
     exit 1
-    ;;
-esac
+  fi
+fi
 
-version="$(
-  curl -fsSL https://api.github.com/repos/astral-sh/uv/releases/latest |
-    /usr/bin/jq -r '.tag_name'
-)"
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "${tmpdir}"' EXIT
 
-url="https://github.com/astral-sh/uv/releases/download/${version}/uv-${target}.tar.gz"
+paths="$("${yoink_bin}" -C "${tmpdir}" astral-sh/uv)"
+if [ -z "${paths}" ]; then
+  echo "Unable to download uv" >&2
+  exit 1
+fi
 
-curl -fsSL "${url}" | $_SUDO tar -xzf - -C "/usr/local/bin" --strip-components=1
+set -- ${paths}
+for path in "$@"; do
+  if [ -z "${path}" ] || ! [ -f "${path}" ]; then
+    echo "uv binary not found after download" >&2
+    exit 1
+  fi
+  $_SUDO install -m 755 "${path}" "/usr/local/bin/$(basename "${path}")"
+done

@@ -1,27 +1,30 @@
 #!/bin/sh
 set -eo pipefail
 
-os="$(uname -s)"
-arch="$(uname -m)"
+yoink_bin="/usr/local/bin/yoink"
+if ! [ -x "${yoink_bin}" ]; then
+  if command -v yoink >/dev/null 2>&1; then
+    yoink_bin="$(command -v yoink)"
+  else
+    echo "yoink not installed; run installables/yoink.sh" >&2
+    exit 1
+  fi
+fi
 
-case "${os}:${arch}" in
-  Darwin:arm64) target="darwin+aarch64" ;;
-  Darwin:x86_64) target="darwin+x86-64" ;;
-  Linux:aarch64|Linux:arm64) target="linux+aarch64" ;;
-  Linux:x86_64) target="linux+x86-64" ;;
-*)
-  echo "Unsupported platform: ${os} ${arch}" >&2
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "${tmpdir}"' EXIT
+
+paths="$("${yoink_bin}" -C "${tmpdir}" pkgxdev/pkgx)"
+if [ -z "${paths}" ]; then
+  echo "Unable to download pkgx" >&2
   exit 1
-  ;;
-esac
+fi
 
-version="$(
-  curl -fsSL https://api.github.com/repos/pkgxdev/pkgx/releases/latest |
-    /usr/bin/jq -r '.tag_name'
-)"
-
-plain_version="${version#v}"
-asset="pkgx-${plain_version}+${target}.tar.gz"
-url="https://github.com/pkgxdev/pkgx/releases/download/${version}/${asset}"
-
-curl -fsSL "${url}" | $_SUDO tar -xzf - -C /usr/local/bin
+set -- ${paths}
+for path in "$@"; do
+  if [ -z "${path}" ] || ! [ -f "${path}" ]; then
+    echo "pkgx binary not found after download" >&2
+    exit 1
+  fi
+  $_SUDO install -m 755 "${path}" "/usr/local/bin/$(basename "${path}")"
+done

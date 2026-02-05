@@ -1,41 +1,30 @@
 #!/bin/sh
 set -eo pipefail
 
-case "$(uname -s):$(uname -m)" in
-  Darwin:arm64)
-    target_label="darwin-aarch64"
-    asset_re='brewx-.*(darwin|macos|apple-darwin).*(aarch64|arm64)\.tar\.gz$'
-    ;;
-  Darwin:x86_64)
-    target_label="darwin-x86_64"
-    asset_re='brewx-.*(darwin|macos|apple-darwin).*(x86_64|amd64)\.tar\.gz$'
-    ;;
-*)
-  echo "unsupported platform" >&2
-  exit 1;;
-esac
+yoink_bin="/usr/local/bin/yoink"
+if ! [ -x "${yoink_bin}" ]; then
+  if command -v yoink >/dev/null 2>&1; then
+    yoink_bin="$(command -v yoink)"
+  else
+    echo "yoink not installed; run installables/yoink.sh" >&2
+    exit 1
+  fi
+fi
 
-version="$(
-  curl -fsSL https://api.github.com/repos/mxcl/brewx/releases/latest |
-    /usr/bin/jq -r '.tag_name'
-)"
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "${tmpdir}"' EXIT
 
-release_json="$(
-  curl -fsSL "https://api.github.com/repos/mxcl/brewx/releases/tags/${version}" ||
-    curl -fsSL https://api.github.com/repos/mxcl/brewx/releases/latest
-)"
-
-url="$(
-  printf '%s' "${release_json}" |
-    /usr/bin/jq -r --arg re "${asset_re}" '
-      .assets | map(select(.name | test($re))) |
-      .[0].browser_download_url // empty
-    '
-)"
-
-if [ -z "${url}" ]; then
-  echo "Unable to find brewx asset for ${version} (${target_label})" >&2
+paths="$("${yoink_bin}" -C "${tmpdir}" mxcl/brewx)"
+if [ -z "${paths}" ]; then
+  echo "Unable to download brewx" >&2
   exit 1
 fi
 
-curl -fsSL "${url}" | $_SUDO tar -xzf - -C /usr/local/bin
+set -- ${paths}
+for path in "$@"; do
+  if [ -z "${path}" ] || ! [ -f "${path}" ]; then
+    echo "brewx binary not found after download" >&2
+    exit 1
+  fi
+  $_SUDO install -m 755 "${path}" "/usr/local/bin/$(basename "${path}")"
+done

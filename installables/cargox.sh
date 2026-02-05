@@ -1,31 +1,30 @@
 #!/bin/sh
 set -eo pipefail
 
-os="$(uname -s)"
-arch="$(uname -m)"
-
-case "${os}:${arch}" in
-  Darwin:arm64) target="aarch64-apple-darwin" ;;
-  Darwin:x86_64) target="x86_64-apple-darwin" ;;
-  Linux:x86_64) target="x86_64-unknown-linux-gnu" ;;
-*)
-  echo "Unsupported platform: ${os} ${arch}" >&2
-  exit 1
-  ;;
-esac
-
-version="$(
-  curl -fsSL https://api.github.com/repos/pkgxdev/cargox/releases/latest |
-    /usr/bin/jq -r '.tag_name'
-)"
-
-plain_version="${version#v}"
-asset="cargox-${plain_version}-${target}.tar.gz"
-url="https://github.com/pkgxdev/cargox/releases/download/${version}/${asset}"
+yoink_bin="/usr/local/bin/yoink"
+if ! [ -x "${yoink_bin}" ]; then
+  if command -v yoink >/dev/null 2>&1; then
+    yoink_bin="$(command -v yoink)"
+  else
+    echo "yoink not installed; run installables/yoink.sh" >&2
+    exit 1
+  fi
+fi
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
-curl -fsSL "${url}" | tar -xzf - -C "${tmpdir}"
+paths="$("${yoink_bin}" -C "${tmpdir}" pkgxdev/cargox)"
+if [ -z "${paths}" ]; then
+  echo "Unable to download cargox" >&2
+  exit 1
+fi
 
-$_SUDO install -m 755 "${tmpdir}/cargox" /usr/local/bin/cargox
+set -- ${paths}
+for path in "$@"; do
+  if [ -z "${path}" ] || ! [ -f "${path}" ]; then
+    echo "cargox binary not found after download" >&2
+    exit 1
+  fi
+  $_SUDO install -m 755 "${path}" "/usr/local/bin/$(basename "${path}")"
+done
