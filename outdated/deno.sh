@@ -9,7 +9,23 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "${script_path}")" && pwd)"
 repo="denoland/deno"
 bin="/usr/local/bin/deno"
 
-latest="$(latest_tag "${repo}")"
+yoink_bin="/usr/local/bin/yoink"
+if ! [ -x "${yoink_bin}" ]; then
+  if command -v yoink >/dev/null 2>&1; then
+    yoink_bin="$(command -v yoink)"
+  else
+    echo "yoink not installed; unable to check ${repo}" >&2
+    exit 2
+  fi
+fi
+
+latest="$("${yoink_bin}" -jI "${repo}" | /usr/bin/jq -r '.tag')"
+
+if [ -z "${latest}" ] || [ "${latest}" = "null" ]; then
+  echo "Unable to determine latest release for ${repo}" >&2
+  exit 2
+fi
+
 installed="$(installed_version "${bin}")"
 
 if [ -n "${installed}" ] && ! version_is_newer "${latest}" "${installed}"; then
