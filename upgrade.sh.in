@@ -11,11 +11,6 @@ if [ -x "/opt/homebrew/bin/brew" ]; then
   /opt/homebrew/bin/brew upgrade
 fi
 
-if [ -x /usr/local/bin/yoink ]; then
-  gum format "# Updating Yoink"
-  /usr/local/bin/yoink upgrade
-fi
-
 gum format "# Updating Pythons"
 /usr/local/bin/uv python upgrade
 
