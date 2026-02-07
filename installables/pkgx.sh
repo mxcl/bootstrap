@@ -20,8 +20,7 @@ if [ -z "${paths}" ]; then
   exit 1
 fi
 
-set -- ${paths}
-for path in "$@"; do
+for path in ${paths}; do
   if [ -z "${path}" ] || ! [ -f "${path}" ]; then
     echo "pkgx binary not found after download" >&2
     exit 1
