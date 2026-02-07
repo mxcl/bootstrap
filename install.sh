@@ -7,6 +7,31 @@ DEFAULT_PYTHON_VERSION="3.12"
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 script_path="${script_dir}/$(basename "${BASH_SOURCE[0]}")"
 
+list_installables() {
+  if [ -f "${script_dir}/installables/yoink.sh" ]; then
+    printf '%s\n' "${script_dir}/installables/yoink.sh"
+  fi
+  if [ -f "${script_dir}/installables/deno.sh" ]; then
+    printf '%s\n' "${script_dir}/installables/deno.sh"
+  fi
+  for x in "${script_dir}"/installables/*.sh; do
+    if ! [ -e "${x}" ]; then
+      continue
+    fi
+    case "$(basename "${x}")" in
+    yoink.sh|deno.sh)
+      continue
+      ;;
+    esac
+    printf '%s\n' "${x}"
+  done
+}
+
+if [ "${1:-}" = "--list-installables" ]; then
+  list_installables
+  exit 0
+fi
+
 emit_without_shell_header() {
   local file="$1"
 
@@ -153,20 +178,9 @@ fi
 
 echo
 echo '# Installables'
-if [ -f "${script_dir}/installables/yoink.sh" ]; then
-  printf '%q\n' "${script_dir}/installables/yoink.sh"
-fi
-if [ -f "${script_dir}/installables/deno.sh" ]; then
-  printf '%q\n' "${script_dir}/installables/deno.sh"
-fi
-for x in "$script_dir"/installables/*; do
-  case "$(basename "${x}")" in
-  yoink.sh|deno.sh)
-    continue
-    ;;
-  esac
-  printf '%q\n' "$x"
-done
+while IFS= read -r installable; do
+  printf '%q\n' "${installable}"
+done < <(list_installables)
 
 if ! [ -d /opt/homebrew ]; then
   echo

@@ -23,6 +23,16 @@ do
   fi
 done
 
+# Keep installable ordering in sync with install.sh.
+list_installables() {
+  "${ROOT}/install.sh" --list-installables
+}
+
+INSTALLABLES=()
+while IFS= read -r installable; do
+  INSTALLABLES+=("${installable}")
+done < <(list_installables)
+
 emit_without_shell_header() {
   local file="$1"
 
@@ -103,7 +113,7 @@ emit_upgrade_content() {
     emit_outdated_function "outdated_${name}" "${outdated}"
   done
 
-  for installable in "${INSTALLABLES_DIR}"/*.sh; do
+  for installable in "${INSTALLABLES[@]}"; do
     name="$(basename "${installable%.*}")"
     emit_installable_function "install_${name}" "${installable}"
   done
@@ -216,7 +226,7 @@ HEADER
 ${DELIMITER}
 HEADER
 
-  for installable in "${INSTALLABLES_DIR}"/*.sh; do
+  for installable in "${INSTALLABLES[@]}"; do
     cat <<HEADER
 
 # installable: $(basename "${installable}")
