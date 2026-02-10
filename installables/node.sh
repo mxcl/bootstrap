@@ -36,10 +36,18 @@ esac
 asset="node-${version}-${target}.tar.gz"
 url="https://nodejs.org/dist/${version}/${asset}"
 
-tmpdir="$(mktemp -d)"
-trap 'rm -rf "${tmpdir}"' EXIT
+if [ -n "${UPGRADE_STAGE_DIR:-}" ]; then
+  tmpdir="$(mktemp -d "${UPGRADE_STAGE_DIR}/node.XXXXXX")"
+else
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' EXIT
+fi
 
 curl -fsSL "${url}" -o "${tmpdir}/${asset}"
 $_SUDO tar -C /usr/local --strip-components=1 -xzf "${tmpdir}/${asset}"
 $_SUDO rm /usr/local/CHANGELOG.md /usr/local/README.md /usr/local/LICENSE
 $_SUDO rm -rf /usr/local/doc
+
+if [ -n "${UPGRADE_STAGE_DIR:-}" ]; then
+  $_SUDO rm -rf "${tmpdir}"
+fi

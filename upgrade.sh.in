@@ -1,22 +1,55 @@
 #!/bin/sh
+set -e
 
 if [ "$(id -u)" -eq 0 ]; then
   echo "panic: do not run as root" >&2
   exit 1
 fi
 
+exec 3>&1
+exec 1>&2
+
+log_section() {
+  if command -v gum >/dev/null 2>&1; then
+    gum format "# $1"
+  else
+    printf '# %s\n' "$1"
+  fi
+}
+
+emit_root() {
+  sep=""
+  for arg in "$@"; do
+    escaped="$(printf '%s' "${arg}" | /usr/bin/sed "s/'/'\\\\''/g")"
+    printf "%s'%s'" "${sep}" "${escaped}" >&3
+    sep=" "
+  done
+  printf '\n' >&3
+}
+
+emit_stage_cleanup() {
+  emit_root rm -rf "${UPGRADE_STAGE_DIR}"
+}
+
+UPGRADE_STAGE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/upgrade.XXXXXX")"
+if ! [ -d "${UPGRADE_STAGE_DIR}" ]; then
+  echo "panic: failed to create staging directory" >&2
+  exit 1
+fi
+log_section "Staging in ${UPGRADE_STAGE_DIR}"
+
 if [ -x "/opt/homebrew/bin/brew" ]; then
-  gum format "# Updating Homebrew"
+  log_section "Updating Homebrew"
   /opt/homebrew/bin/brew update
   /opt/homebrew/bin/brew upgrade
 fi
 
-gum format "# Updating Pythons"
+log_section "Updating Pythons"
 /usr/local/bin/uv python upgrade
 
 if [ -x "$HOME/.cargo/bin/cargo" ]; then
-  gum format "# Updating Rust"
+  log_section "Updating Rust"
   "$HOME/.cargo/bin/rustup" update
 fi
 
-_SUDO=sudo
+_SUDO=emit_root

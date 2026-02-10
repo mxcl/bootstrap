@@ -14,8 +14,12 @@ if [ -z "${aws_version}" ] || [ "${aws_version}" = "null" ]; then
   exit 1
 fi
 
-tmpdir="$(mktemp -d)"
-trap 'rm -rf "${tmpdir}"' EXIT
+if [ -n "${UPGRADE_STAGE_DIR:-}" ]; then
+  tmpdir="$(mktemp -d "${UPGRADE_STAGE_DIR}/aws.XXXXXX")"
+else
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' EXIT
+fi
 
 outdir="${tmpdir}/out"
 
@@ -25,14 +29,18 @@ outdir="${tmpdir}/out"
   --out "${outdir}"
 
 # prune junk
-rm -rf ${outdir}/share/awscli/bin/aws*
-rm -rf ${outdir}/share/awscli/bin/__pycache__
-rm ${outdir}/share/awscli/bin/distro
-rm ${outdir}/share/awscli/bin/docutils
-rm ${outdir}/share/awscli/bin/jp.py
-rm ${outdir}/share/awscli/bin/rst*
+rm -rf "${outdir}/share/awscli/bin/aws"*
+rm -rf "${outdir}/share/awscli/bin/__pycache__"
+rm -f "${outdir}/share/awscli/bin/distro"
+rm -f "${outdir}/share/awscli/bin/docutils"
+rm -f "${outdir}/share/awscli/bin/jp.py"
+rm -f "${outdir}/share/awscli/bin/rst"*
 
 $_SUDO install -d -m 755 /usr/local/bin /usr/local/share
 $_SUDO rm -rf /usr/local/share/awscli
 $_SUDO mv "${outdir}/share/awscli" /usr/local/share/awscli
 $_SUDO install -m 755 "${outdir}/bin/aws" /usr/local/bin/aws
+
+if [ -n "${UPGRADE_STAGE_DIR:-}" ]; then
+  $_SUDO rm -rf "${tmpdir}"
+fi

@@ -11,8 +11,12 @@ if ! [ -x "${yoink_bin}" ]; then
   fi
 fi
 
-tmpdir="$(mktemp -d)"
-trap 'rm -rf "${tmpdir}"' EXIT
+if [ -n "${UPGRADE_STAGE_DIR:-}" ]; then
+  tmpdir="$(mktemp -d "${UPGRADE_STAGE_DIR}/deno.XXXXXX")"
+else
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' EXIT
+fi
 
 downloaded="$(
   "${yoink_bin}" -C "${tmpdir}" denoland/deno |
@@ -25,3 +29,7 @@ if [ -z "${downloaded}" ] || ! [ -f "${downloaded}" ]; then
 fi
 
 $_SUDO install -m 755 "${downloaded}" /usr/local/bin/deno
+
+if [ -n "${UPGRADE_STAGE_DIR:-}" ]; then
+  $_SUDO rm -rf "${tmpdir}"
+fi

@@ -11,8 +11,12 @@ if ! [ -x "${yoink_bin}" ]; then
   fi
 fi
 
-tmpdir="$(mktemp -d)"
-trap 'rm -rf "${tmpdir}"' EXIT
+if [ -n "${UPGRADE_STAGE_DIR:-}" ]; then
+  tmpdir="$(mktemp -d "${UPGRADE_STAGE_DIR}/cargox.XXXXXX")"
+else
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' EXIT
+fi
 
 paths="$("${yoink_bin}" -C "${tmpdir}" pkgxdev/cargox)"
 if [ -z "${paths}" ]; then
@@ -27,3 +31,7 @@ for path in ${paths}; do
   fi
   $_SUDO install -m 755 "${path}" "/usr/local/bin/$(basename "${path}")"
 done
+
+if [ -n "${UPGRADE_STAGE_DIR:-}" ]; then
+  $_SUDO rm -rf "${tmpdir}"
+fi

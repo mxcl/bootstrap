@@ -127,11 +127,13 @@ emit_upgrade() {
       continue
     fi
     name="${base%.*}"
-    printf '\ngum format "# Checking %s"\n' "${name}"
+    printf '\nlog_section "Checking %s"\n' "${name}"
     printf '\nif version="$(outdated_%s)"; then\n' "${name}"
     printf '  install_%s "${version}"\n' "${name}"
     printf 'fi\n'
   done
+
+  printf '\nemit_stage_cleanup\n'
 
   printf 'EOF\n'
   printf 'chmod 755 %q\n' "${target}"
