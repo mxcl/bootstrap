@@ -1,1 +1,1 @@
-#!/usr/bin/env -S brewx -! +ffmpeg_full ffmpeg
+#!/usr/bin/env -S brewx -! +ffmpeg-full ffmpeg
