@@ -54,11 +54,6 @@ queue_install() {
 
 emit_plan() {
   if [ "${PLAN_HAS_ACTION}" -eq 0 ]; then
-    cat <<'EOF'
-#!/bin/sh
-set -e
-:
-EOF
     return 0
   fi
 
