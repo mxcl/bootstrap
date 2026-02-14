@@ -22,6 +22,7 @@ else
 fi
 
 outdir="${tmpdir}/out"
+root_group="$(id -gn root)"
 
 /usr/local/bin/deno run -A \
   https://raw.githubusercontent.com/mxcl/bootstrap/refs/heads/main/build-aws.ts \
@@ -39,6 +40,7 @@ rm -f "${outdir}/share/awscli/bin/rst"*
 $_SUDO install -d -m 755 /usr/local/bin /usr/local/share
 $_SUDO rm -rf /usr/local/share/awscli
 $_SUDO mv "${outdir}/share/awscli" /usr/local/share/awscli
+$_SUDO chown -R "root:${root_group}" /usr/local/share/awscli
 $_SUDO install -m 755 "${outdir}/bin/aws" /usr/local/bin/aws
 
 if [ -n "${UPGRADE_STAGE_DIR:-}" ]; then

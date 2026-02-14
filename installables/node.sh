@@ -44,7 +44,8 @@ else
 fi
 
 curl -fsSL "${url}" -o "${tmpdir}/${asset}"
-$_SUDO tar -C /usr/local --strip-components=1 -xzf "${tmpdir}/${asset}"
+$_SUDO tar -C /usr/local --strip-components=1 --no-same-owner \
+  -xzf "${tmpdir}/${asset}"
 $_SUDO rm /usr/local/CHANGELOG.md /usr/local/README.md /usr/local/LICENSE
 $_SUDO rm -rf /usr/local/doc
 
