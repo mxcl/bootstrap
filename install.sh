@@ -13,12 +13,15 @@ list_installables() {
   if [ -f "${script_dir}/installables/deno.sh" ]; then
     printf '%s\n' "${script_dir}/installables/deno.sh"
   fi
+  if [ -f "${script_dir}/installables/uv.sh" ]; then
+    printf '%s\n' "${script_dir}/installables/uv.sh"
+  fi
   for x in "${script_dir}"/installables/*.sh; do
     if ! [ -e "${x}" ]; then
       continue
     fi
     case "$(basename "${x}")" in
-    yoink.sh|deno.sh)
+    yoink.sh|deno.sh|uv.sh)
       continue
       ;;
     esac
@@ -72,4 +75,3 @@ done
 emit_outdated_install_commands
 
 printf '\nrun: ./install.sh 2>/dev/null | sudo bash -exo pipefail && outdated\n' >&2
-

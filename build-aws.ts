@@ -105,12 +105,28 @@ async function runCommandOutput(
   return new TextDecoder().decode(stdout).trim();
 }
 
+async function resolveUv(): Promise<string> {
+  const candidates = ["/usr/local/bin/uv", "uv"];
+
+  for (const candidate of candidates) {
+    try {
+      await runCommandOutput([candidate, "--version"]);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+
+  throw new Error("uv not found (expected /usr/local/bin/uv or uv in PATH)");
+}
+
 async function ensureUvPython(version: string): Promise<string> {
-  const findArgs = ["uv", "python", "find", "--managed-python", version];
+  const uv = await resolveUv();
+  const findArgs = [uv, "python", "find", "--managed-python", version];
   try {
     return await runCommandOutput(findArgs);
   } catch {
-    await runCommand(["uv", "python", "install", "--managed-python", version]);
+    await runCommand([uv, "python", "install", "--managed-python", version]);
     return await runCommandOutput(findArgs);
   }
 }
