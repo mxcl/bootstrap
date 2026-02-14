@@ -126,14 +126,20 @@ emit_outdated_content() {
     name="${base%.*}"
     printf '\nset_step_title "Checking %s"\n' "${name}"
     printf '\nif version="$(outdated_%s)"; then\n' "${name}"
-    printf '  set_step_title "Updating %s"\n' "${name}"
-    printf '  install_%s "${version}"\n' "${name}"
+    printf '  queue_install "%s" "${version}"\n' "${name}"
     printf 'fi\n'
   done
 
-  printf '\napply_root_commands\n'
+  printf '\nemit_plan\n'
   printf '}\n\n'
-  printf 'run_outdated "$@"\n'
+  cat <<'EOF'
+if [ "${1:-}" = "--apply" ]; then
+  shift
+  run_apply "$@"
+else
+  run_outdated "$@"
+fi
+EOF
 }
 
 mkdir -p "${OUTPUT_DIR}"

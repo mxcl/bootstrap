@@ -8,14 +8,64 @@ fi
 
 log_section() {
   if command -v gum >/dev/null 2>&1; then
-    gum format "# $1"
+    gum format "# $1" >&2
   else
-    printf '# %s\n' "$1"
+    printf '# %s\n' "$1" >&2
   fi
 }
 
 set_step_title() {
   log_section "$1"
+}
+
+shell_quote() {
+  escaped="$(printf '%s' "$1" | /usr/bin/sed "s/'/'\\\\''/g")"
+  printf "'%s'" "${escaped}"
+}
+
+queue_arg() {
+  quoted="$(shell_quote "$1")"
+  APPLY_ARGS="${APPLY_ARGS} ${quoted}"
+  PLAN_HAS_ACTION=1
+}
+
+queue_brew_upgrade() {
+  queue_arg "--brew"
+}
+
+queue_uv_python_upgrade() {
+  queue_arg "--uv-python"
+}
+
+queue_rustup_upgrade() {
+  queue_arg "--rustup"
+}
+
+queue_install() {
+  name="$1"
+  version="$2"
+  if [ -z "${name}" ] || [ -z "${version}" ]; then
+    return 0
+  fi
+
+  queue_arg "--install"
+  queue_arg "${name}=${version}"
+}
+
+emit_plan() {
+  if [ "${PLAN_HAS_ACTION}" -eq 0 ]; then
+    cat <<'EOF'
+#!/bin/sh
+set -e
+:
+EOF
+    return 0
+  fi
+
+  printf '#!/bin/sh\n'
+  printf 'set -e\n'
+  printf '\n'
+  printf 'exec /usr/local/bin/outdated --apply%s\n' "${APPLY_ARGS}"
 }
 
 begin_root_script() {
@@ -59,7 +109,189 @@ EOF
   sudo "${ROOT_SCRIPT}"
 }
 
-run_outdated() {
+max_version() {
+  best=""
+  while IFS= read -r candidate; do
+    if [ -z "${candidate}" ]; then
+      continue
+    fi
+    if [ -z "${best}" ] || template_version_is_newer "${candidate}" "${best}"; then
+      best="${candidate}"
+    fi
+  done
+  printf '%s\n' "${best}"
+}
+
+template_sanitize_version() {
+  printf '%s' "$1" | /usr/bin/sed -E 's/^[^0-9]*//; s/[^0-9.].*$//'
+}
+
+template_version_is_newer() {
+  latest="$(template_sanitize_version "$1")"
+  current="$(template_sanitize_version "$2")"
+
+  if [ -z "${latest}" ] || [ -z "${current}" ]; then
+    return 0
+  fi
+
+  /usr/bin/awk -v a="${latest}" -v b="${current}" '
+    function splitver(v, arr,    i, n) {
+      n = split(v, arr, ".");
+      for (i = 1; i <= n; i++) if (arr[i] == "") arr[i] = 0;
+      return n;
+    }
+    BEGIN {
+      na = splitver(a, A);
+      nb = splitver(b, B);
+      n = (na > nb) ? na : nb;
+      for (i = 1; i <= n; i++) {
+        ai = (i <= na) ? A[i] : 0;
+        bi = (i <= nb) ? B[i] : 0;
+        if (ai + 0 > bi + 0) exit 0;
+        if (ai + 0 < bi + 0) exit 1;
+      }
+      exit 2;
+    }'
+
+  case $? in
+    0) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+uv_python_upgrade_available() {
+  if ! [ -x "/usr/local/bin/uv" ]; then
+    return 1
+  fi
+
+  if ! command -v /usr/bin/jq >/dev/null 2>&1; then
+    return 0
+  fi
+
+  installed_json="$(
+    /usr/local/bin/uv python list --only-installed --output-format json \
+      2>/dev/null || true
+  )"
+  if [ -z "${installed_json}" ] || [ "${installed_json}" = "[]" ]; then
+    return 1
+  fi
+
+  minors="$(
+    printf '%s' "${installed_json}" |
+      /usr/bin/jq -r '
+        .[] |
+        select(.implementation == "cpython") |
+        select(.path != null and (.path | contains("/.local/share/uv/python/"))) |
+        "\(.version_parts.major).\(.version_parts.minor)"
+      ' 2>/dev/null |
+      /usr/bin/sort -u
+  )"
+
+  if [ -z "${minors}" ]; then
+    return 1
+  fi
+
+  for minor in ${minors}; do
+    installed_versions="$(
+      printf '%s' "${installed_json}" |
+        /usr/bin/jq -r --arg minor "${minor}" '
+          .[] |
+          select(.implementation == "cpython") |
+          select(.path != null and (.path | contains("/.local/share/uv/python/"))) |
+          select(
+            ((.version_parts.major | tostring) + "." +
+            (.version_parts.minor | tostring)) == $minor
+          ) |
+          .version
+        ' 2>/dev/null
+    )"
+    current="$(printf '%s\n' "${installed_versions}" | max_version)"
+    if [ -z "${current}" ]; then
+      continue
+    fi
+
+    available_json="$(
+      /usr/local/bin/uv python list "${minor}" --only-downloads --output-format \
+        json 2>/dev/null || true
+    )"
+    if [ -z "${available_json}" ] || [ "${available_json}" = "[]" ]; then
+      continue
+    fi
+
+    available_versions="$(
+      printf '%s' "${available_json}" |
+        /usr/bin/jq -r --arg minor "${minor}" '
+          .[] |
+          select(.implementation == "cpython") |
+          select(
+            ((.version_parts.major | tostring) + "." +
+            (.version_parts.minor | tostring)) == $minor
+          ) |
+          .version
+        ' 2>/dev/null
+    )"
+    latest="$(printf '%s\n' "${available_versions}" | max_version)"
+
+    if [ -n "${latest}" ] && template_version_is_newer "${latest}" "${current}"; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+rustup_upgrade_available() {
+  if ! [ -x "$HOME/.cargo/bin/rustup" ]; then
+    return 1
+  fi
+
+  if "$HOME/.cargo/bin/rustup" check 2>/dev/null |
+    /usr/bin/grep -q "Update available"
+  then
+    return 0
+  fi
+
+  return 1
+}
+
+run_apply() {
+  APPLY_BREW=0
+  APPLY_UV_PYTHON=0
+  APPLY_RUSTUP=0
+  INSTALL_QUEUE=""
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --brew)
+        APPLY_BREW=1
+        ;;
+      --uv-python)
+        APPLY_UV_PYTHON=1
+        ;;
+      --rustup)
+        APPLY_RUSTUP=1
+        ;;
+      --install)
+        shift
+        if [ $# -eq 0 ]; then
+          echo "panic: --install requires NAME=VERSION" >&2
+          exit 1
+        fi
+        if [ -z "${INSTALL_QUEUE}" ]; then
+          INSTALL_QUEUE="$1"
+        else
+          INSTALL_QUEUE="${INSTALL_QUEUE}
+$1"
+        fi
+        ;;
+      *)
+        echo "panic: unknown apply argument: $1" >&2
+        exit 1
+        ;;
+    esac
+    shift
+  done
+
   UPGRADE_STAGE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/upgrade.XXXXXX")"
   if ! [ -d "${UPGRADE_STAGE_DIR}" ]; then
     echo "panic: failed to create staging directory" >&2
@@ -71,16 +303,78 @@ run_outdated() {
   begin_root_script
   _SUDO=emit_root
 
-  if [ -x "/opt/homebrew/bin/brew" ]; then
+  if [ "${APPLY_BREW}" -eq 1 ] && [ -x "/opt/homebrew/bin/brew" ]; then
     set_step_title "Updating Homebrew"
-    /opt/homebrew/bin/brew update
     /opt/homebrew/bin/brew upgrade
   fi
 
-  set_step_title "Updating Pythons"
-  /usr/local/bin/uv python upgrade
+  if [ "${APPLY_UV_PYTHON}" -eq 1 ] && [ -x "/usr/local/bin/uv" ]; then
+    set_step_title "Updating Pythons"
+    /usr/local/bin/uv python upgrade
+  fi
 
-  if [ -x "$HOME/.cargo/bin/cargo" ]; then
+  if [ "${APPLY_RUSTUP}" -eq 1 ] && [ -x "$HOME/.cargo/bin/rustup" ]; then
     set_step_title "Updating Rust"
     "$HOME/.cargo/bin/rustup" update
+  fi
+
+  if [ -n "${INSTALL_QUEUE}" ]; then
+    while IFS= read -r spec; do
+      if [ -z "${spec}" ]; then
+        continue
+      fi
+
+      name="${spec%%=*}"
+      version="${spec#*=}"
+      if [ -z "${name}" ] || [ "${name}" = "${spec}" ] || [ -z "${version}" ]; then
+        echo "panic: invalid install spec: ${spec}" >&2
+        exit 1
+      fi
+
+      case "${name}" in
+        *[!A-Za-z0-9_]*)
+          echo "panic: invalid install target: ${name}" >&2
+          exit 1
+          ;;
+      esac
+
+      install_func="install_${name}"
+      if ! command -v "${install_func}" >/dev/null 2>&1; then
+        echo "panic: unknown install target: ${name}" >&2
+        exit 1
+      fi
+
+      set_step_title "Updating ${name}"
+      "${install_func}" "${version}"
+    done <<EOF
+${INSTALL_QUEUE}
+EOF
+  fi
+
+  apply_root_commands
+}
+
+run_outdated() {
+  APPLY_ARGS=""
+  PLAN_HAS_ACTION=0
+
+  if [ -x "/opt/homebrew/bin/brew" ]; then
+    set_step_title "Checking Homebrew"
+    if [ -n "$(/opt/homebrew/bin/brew outdated 2>/dev/null)" ]; then
+      queue_brew_upgrade
+    fi
+  fi
+
+  if [ -x "/usr/local/bin/uv" ]; then
+    set_step_title "Checking Pythons"
+    if uv_python_upgrade_available; then
+      queue_uv_python_upgrade
+    fi
+  fi
+
+  if [ -x "$HOME/.cargo/bin/rustup" ]; then
+    set_step_title "Checking Rust"
+    if rustup_upgrade_available; then
+      queue_rustup_upgrade
+    fi
   fi

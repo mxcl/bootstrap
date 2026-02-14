@@ -54,9 +54,12 @@ Check for outdated installs and upgrade only what needs it by running:
 $ outdated
 ```
 
+- `outdated` has no side effects; it prints an apply script to stdout.
+- Apply immediately with:
+  ```sh
+  outdated | sh
+  ```
 - Each managed item is checked for outdated status first.
-- Downloads and staging happen in a temporary directory.
-- Privileged filesystem changes are applied in one `sudo` call.
 
 ## `/usr/local/bin`
 
