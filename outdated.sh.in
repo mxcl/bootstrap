@@ -191,8 +191,32 @@ EOF
       continue
     fi
     name="${spec%%=*}"
+    if [ "${name}" = "uv" ]; then
+      append_install_spec "${spec}"
+    fi
+  done <<EOF
+${INSTALL_QUEUE}
+EOF
+
+  while IFS= read -r spec; do
+    if [ -z "${spec}" ]; then
+      continue
+    fi
+    name="${spec%%=*}"
+    if [ "${name}" = "aws" ]; then
+      append_install_spec "${spec}"
+    fi
+  done <<EOF
+${INSTALL_QUEUE}
+EOF
+
+  while IFS= read -r spec; do
+    if [ -z "${spec}" ]; then
+      continue
+    fi
+    name="${spec%%=*}"
     case "${name}" in
-      yoink|deno)
+      yoink|deno|uv|aws)
         continue
         ;;
     esac

@@ -34,6 +34,18 @@ if ! [ -x "${deno_bin}" ]; then
   fi
 fi
 
+uv_bin="${UV_BIN:-/usr/local/bin/uv}"
+if ! [ -x "${uv_bin}" ]; then
+  if command -v uv >/dev/null 2>&1; then
+    uv_bin="$(command -v uv)"
+  else
+    echo "uv not installed; run installables/uv.sh" >&2
+    exit 1
+  fi
+fi
+PATH="$(dirname "${uv_bin}"):${PATH}"
+export PATH
+
 "${deno_bin}" run -A \
   https://raw.githubusercontent.com/mxcl/bootstrap/refs/heads/main/build-aws.ts \
   "${aws_version}" \
