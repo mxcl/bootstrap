@@ -21,6 +21,29 @@ list_outdated_checks() {
   done
 }
 
+list_installables() {
+  if [ -f "${script_dir}/installables/yoink.sh" ]; then
+    printf '%s\n' "${script_dir}/installables/yoink.sh"
+  fi
+  if [ -f "${script_dir}/installables/deno.sh" ]; then
+    printf '%s\n' "${script_dir}/installables/deno.sh"
+  fi
+  if [ -f "${script_dir}/installables/uv.sh" ]; then
+    printf '%s\n' "${script_dir}/installables/uv.sh"
+  fi
+  for x in "${script_dir}"/installables/*.sh; do
+    if ! [ -e "${x}" ]; then
+      continue
+    fi
+    case "$(basename "${x}")" in
+    yoink.sh|deno.sh|uv.sh)
+      continue
+      ;;
+    esac
+    printf '%s\n' "${x}"
+  done
+}
+
 emit_without_shell_header() {
   local file="$1"
 
@@ -86,6 +109,25 @@ emit_installable_function() {
   printf '}\n'
 }
 
+emit_installable_target_matcher() {
+  printf '\nis_known_install_target() {\n'
+  printf '  case "$1" in\n'
+  while IFS= read -r installable; do
+    if [ -z "${installable}" ]; then
+      continue
+    fi
+    name="$(basename "${installable%.*}")"
+    printf '    %s)\n' "${name}"
+    printf '      return 0\n'
+    printf '      ;;\n'
+  done < <(list_installables)
+  printf '    *)\n'
+  printf '      return 1\n'
+  printf '      ;;\n'
+  printf '  esac\n'
+  printf '}\n'
+}
+
 cat "${script_dir}/outdated.sh.in"
 printf '\n'
 
@@ -97,10 +139,12 @@ while IFS= read -r outdated; do
   emit_outdated_function "outdated_${name}" "${outdated}"
 done < <(list_outdated_checks)
 
-for installable in "${script_dir}"/installables/*.sh; do
+while IFS= read -r installable; do
   name="$(basename "${installable%.*}")"
   emit_installable_function "install_${name}" "${installable}"
-done
+done < <(list_installables)
+
+emit_installable_target_matcher
 
 printf '\nif [ "${OUTDATED_BOOTSTRAP_ONLY:-0}" -ne 1 ]; then\n'
 
@@ -122,6 +166,8 @@ if [ "${1:-}" = "--internal-run" ]; then
   run_internal "$@"
 elif [ "${1:-}" = "--apply" ]; then
   shift
+  OUTDATED_BOOTSTRAP_ONLY=1
+  run_outdated >/dev/null
   run_apply "$@"
 else
   run_outdated "$@"

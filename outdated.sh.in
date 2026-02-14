@@ -47,6 +47,10 @@ is_internal_command() {
   esac
 }
 
+is_known_install_target() {
+  return 1
+}
+
 run_internal() {
   target="${1:-}"
   if [ -z "${target}" ]; then
@@ -419,12 +423,12 @@ $1"
           ;;
       esac
 
-      install_func="install_${name}"
-      if ! command -v "${install_func}" >/dev/null 2>&1; then
+      if ! is_known_install_target "${name}"; then
         echo "panic: unknown install target: ${name}" >&2
         exit 1
       fi
 
+      install_func="install_${name}"
       run_step "Updating ${name}" "${install_func}" "${version}"
     done <<EOF
 ${INSTALL_QUEUE}
