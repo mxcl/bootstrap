@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eo pipefail
 
-yoink_bin="/usr/local/bin/yoink"
+yoink_bin="${YOINK_BIN:-/usr/local/bin/yoink}"
 if ! [ -x "${yoink_bin}" ]; then
   if command -v yoink >/dev/null 2>&1; then
     yoink_bin="$(command -v yoink)"

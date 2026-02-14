@@ -146,6 +146,64 @@ queue_install() {
   queue_arg "${name}=${version}"
 }
 
+append_install_spec() {
+  if [ -z "${REORDERED_INSTALL_QUEUE}" ]; then
+    REORDERED_INSTALL_QUEUE="${1}"
+  else
+    REORDERED_INSTALL_QUEUE="${REORDERED_INSTALL_QUEUE}
+${1}"
+  fi
+}
+
+reorder_install_queue() {
+  if [ -z "${INSTALL_QUEUE}" ]; then
+    return 0
+  fi
+
+  REORDERED_INSTALL_QUEUE=""
+
+  while IFS= read -r spec; do
+    if [ -z "${spec}" ]; then
+      continue
+    fi
+    name="${spec%%=*}"
+    if [ "${name}" = "yoink" ]; then
+      append_install_spec "${spec}"
+    fi
+  done <<EOF
+${INSTALL_QUEUE}
+EOF
+
+  while IFS= read -r spec; do
+    if [ -z "${spec}" ]; then
+      continue
+    fi
+    name="${spec%%=*}"
+    if [ "${name}" = "deno" ]; then
+      append_install_spec "${spec}"
+    fi
+  done <<EOF
+${INSTALL_QUEUE}
+EOF
+
+  while IFS= read -r spec; do
+    if [ -z "${spec}" ]; then
+      continue
+    fi
+    name="${spec%%=*}"
+    case "${name}" in
+      yoink|deno)
+        continue
+        ;;
+    esac
+    append_install_spec "${spec}"
+  done <<EOF
+${INSTALL_QUEUE}
+EOF
+
+  INSTALL_QUEUE="${REORDERED_INSTALL_QUEUE}"
+}
+
 emit_plan() {
   if [ "${PLAN_HAS_ACTION}" -eq 0 ]; then
     return 0
@@ -404,6 +462,8 @@ $1"
   fi
 
   if [ -n "${INSTALL_QUEUE}" ]; then
+    reorder_install_queue
+
     while IFS= read -r spec; do
       if [ -z "${spec}" ]; then
         continue

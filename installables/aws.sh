@@ -24,7 +24,17 @@ fi
 outdir="${tmpdir}/out"
 root_group="$(id -gn root)"
 
-/usr/local/bin/deno run -A \
+deno_bin="${DENO_BIN:-/usr/local/bin/deno}"
+if ! [ -x "${deno_bin}" ]; then
+  if command -v deno >/dev/null 2>&1; then
+    deno_bin="$(command -v deno)"
+  else
+    echo "deno not installed; run installables/deno.sh" >&2
+    exit 1
+  fi
+fi
+
+"${deno_bin}" run -A \
   https://raw.githubusercontent.com/mxcl/bootstrap/refs/heads/main/build-aws.ts \
   "${aws_version}" \
   --out "${outdir}"
