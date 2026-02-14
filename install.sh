@@ -127,13 +127,26 @@ emit_upgrade() {
       continue
     fi
     name="${base%.*}"
-    printf '\nlog_section "Checking %s"\n' "${name}"
+    printf '\nset_step_title "Checking %s"\n' "${name}"
     printf '\nif version="$(outdated_%s)"; then\n' "${name}"
+    printf '  set_step_title "Updating %s"\n' "${name}"
     printf '  install_%s "${version}"\n' "${name}"
     printf 'fi\n'
   done
 
   printf '\nemit_stage_cleanup\n'
+  printf '}\n\n'
+  cat <<'EOS'
+if [ -n "${UPGRADE_SPIN_WORKER:-}" ]; then
+  run_upgrade "$@"
+elif [ "${VERBOSE}" = "1" ] || ! command -v gum >/dev/null 2>&1; then
+  run_upgrade "$@"
+else
+  run_with_spinner "$@"
+fi
+
+emit_queued_root_commands
+EOS
 
   printf 'EOF\n'
   printf 'chmod 755 %q\n' "${target}"
