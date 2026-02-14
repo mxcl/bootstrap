@@ -158,7 +158,6 @@ EOS
 
   printf '%s\n' "${heredoc_delim}"
   printf 'chmod 755 %q\n' "${target}"
-  printf 'rm -f %q\n' "/usr/local/bin/upgrade"
 }
 
 echo '# Runnables'
