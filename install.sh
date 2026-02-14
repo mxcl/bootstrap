@@ -71,5 +71,5 @@ done
 
 emit_outdated_install_commands
 
-printf '\n' >&2
-printf '%s\n' 'outdated | sh' >&2
+printf '\nrun: ./install.sh 2>/dev/null | sudo bash -exo pipefail && outdated\n' >&2
+

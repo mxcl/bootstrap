@@ -39,7 +39,7 @@ A package manager *manager* and other mad shit for science.
 ## Installation
 
 ```sh
-curl -Ssf https://mxcl.dev/bootstrap/setup.sh | sudo bash -ex
+curl -Ssf https://mxcl.dev/bootstrap/setup.sh | sudo bash -exo pipefail
 ```
 
 Or if you hate `curl | sh` stuff then clone this repo and run `./install.sh`.
