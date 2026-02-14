@@ -105,8 +105,8 @@ done
 while IFS= read -r outdated; do
   base="$(basename "${outdated}")"
   name="${base%.*}"
-  printf '\nset_step_title "Checking %s"\n' "${name}"
-  printf '\nif version="$(outdated_%s)"; then\n' "${name}"
+  printf '\nif version="$(run_step_capture "Checking %s" outdated_%s)"; then\n' \
+    "${name}" "${name}"
   printf '  queue_install "%s" "${version}"\n' "${name}"
   printf 'fi\n'
 done < <(list_outdated_checks)
