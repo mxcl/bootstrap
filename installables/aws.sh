@@ -23,6 +23,8 @@ fi
 
 outdir="${tmpdir}/out"
 root_group="$(id -gn root)"
+build_script_url="https://raw.githubusercontent.com/mxcl/bootstrap/refs/heads/main/build-aws.ts"
+build_script="${tmpdir}/build-aws.ts"
 
 deno_bin="${DENO_BIN:-/usr/local/bin/deno}"
 if ! [ -x "${deno_bin}" ]; then
@@ -46,8 +48,24 @@ fi
 PATH="$(dirname "${uv_bin}"):${PATH}"
 export PATH
 
+curl -fsSL "${build_script_url}" -o "${build_script}"
+/usr/bin/awk '
+  /await Deno\.chmod\(linkPath, 0o755\);/ {
+    print "    try {"
+    print "      await Deno.chmod(linkPath, 0o755);"
+    print "    } catch (err) {"
+    print "      if (!(err instanceof Deno.errors.PermissionDenied)) {"
+    print "        throw err;"
+    print "      }"
+    print "    }"
+    next
+  }
+  { print }
+' "${build_script}" >"${build_script}.patched"
+mv "${build_script}.patched" "${build_script}"
+
 "${deno_bin}" run -A \
-  https://raw.githubusercontent.com/mxcl/bootstrap/refs/heads/main/build-aws.ts \
+  "${build_script}" \
   "${aws_version}" \
   --out "${outdir}"
 

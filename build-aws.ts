@@ -205,7 +205,13 @@ async function hardlinkPython(
     const linkPath = join(binDir, name);
     await removeIfExists(linkPath);
     await Deno.link(pythonTarget, linkPath);
-    await Deno.chmod(linkPath, 0o755);
+    try {
+      await Deno.chmod(linkPath, 0o755);
+    } catch (err) {
+      if (!(err instanceof Deno.errors.PermissionDenied)) {
+        throw err;
+      }
+    }
   }
 
   const pythonPrefix = dirname(dirname(pythonTarget));
