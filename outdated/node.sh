@@ -11,12 +11,13 @@ bin="/usr/local/bin/node"
 latest="$(
   curl -fsSL https://nodejs.org/dist/index.json |
     /usr/bin/awk '
+      found == 0 &&
       match($0, /"version"[[:space:]]*:[[:space:]]*"[^"]+"/) {
         value = substr($0, RSTART, RLENGTH)
         sub(/^.*:[[:space:]]*"/, "", value)
         sub(/"$/, "", value)
         print value
-        exit
+        found = 1
       }'
 )"
 

@@ -52,12 +52,13 @@ latest_tag() {
   tag="$(
     curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" |
       /usr/bin/awk '
+        found == 0 &&
         match($0, /"tag_name"[[:space:]]*:[[:space:]]*"[^"]+"/) {
           value = substr($0, RSTART, RLENGTH)
           sub(/^.*:[[:space:]]*"/, "", value)
           sub(/"$/, "", value)
           print value
-          exit
+          found = 1
         }'
   )"
 
