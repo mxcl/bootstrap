@@ -5,7 +5,6 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 RUNNABLES_DIR="${ROOT}/runnables"
 OUTDATED_DIR="${ROOT}/outdated"
-INSTALLABLES_DIR="${ROOT}/installables"
 OUTDATED_TEMPLATE="${ROOT}/outdated.sh.in"
 MAKE_OUTDATED="${ROOT}/make-outdated.sh"
 OUTPUT="${1:-${ROOT}/setup.sh}"
@@ -15,42 +14,14 @@ DEFAULT_PYTHON_VERSION="3.12"
 PYTHON_VERSIONS="3.10 3.11 3.12 3.13"
 DELIMITER="__BOOTSTRAP_SCRIPT_EOF__"
 
-for search_path in "${RUNNABLES_DIR}" "${OUTDATED_DIR}" "${INSTALLABLES_DIR}" \
-  "${OUTDATED_TEMPLATE}" "${MAKE_OUTDATED}"
+for search_path in "${RUNNABLES_DIR}" "${OUTDATED_DIR}" "${OUTDATED_TEMPLATE}" \
+  "${MAKE_OUTDATED}"
 do
   if grep -R -n "^${DELIMITER}$" "${search_path}" >/dev/null 2>&1; then
     printf '%s\n' "make-setup: delimiter collision: ${DELIMITER}" >&2
     exit 1
   fi
 done
-
-# Keep installable ordering in sync with install.sh.
-list_installables() {
-  "${ROOT}/install.sh" --list-installables |
-    while IFS= read -r installable; do
-      case "$(basename "${installable}")" in
-        aws.sh)
-          continue
-          ;;
-      esac
-      printf '%s\n' "${installable}"
-    done
-}
-
-INSTALLABLES=()
-while IFS= read -r installable; do
-  INSTALLABLES+=("${installable}")
-done < <(list_installables)
-
-emit_without_shell_header() {
-  local file="$1"
-
-  /usr/bin/awk '
-    NR == 1 && /^#!/ { next }
-    /^set -euo pipefail$/ { next }
-    { print }
-  ' "$file"
-}
 
 emit_outdated_content() {
   "${MAKE_OUTDATED}"
@@ -150,14 +121,6 @@ HEADER
   cat <<HEADER
 ${DELIMITER}
 HEADER
-
-  for installable in "${INSTALLABLES[@]}"; do
-    cat <<HEADER
-
-# installable: $(basename "${installable}")
-HEADER
-    emit_without_shell_header "${installable}"
-  done
 
   for script in "${RUNNABLES_DIR}"/*.sh; do
     name=$(basename "${script%.*}")
