@@ -100,8 +100,9 @@ emit_installable_function() {
 emit_outdated() {
   local outdated_in="$1"
   local target="/usr/local/bin/outdated"
+  local heredoc_delim="__BOOTSTRAP_OUTDATED_SCRIPT_EOF__"
 
-  printf "cat << 'EOF' > %q\n" "${target}"
+  printf "cat << '%s' > %q\n" "${heredoc_delim}" "${target}"
   cat "${outdated_in}"
   printf '\n'
 
@@ -140,7 +141,7 @@ emit_outdated() {
 run_outdated "$@"
 EOS
 
-  printf 'EOF\n'
+  printf '%s\n' "${heredoc_delim}"
   printf 'chmod 755 %q\n' "${target}"
   printf 'rm -f %q\n' "/usr/local/bin/upgrade"
 }
