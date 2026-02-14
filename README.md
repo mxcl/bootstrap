@@ -46,12 +46,12 @@ Or if you hate `curl | sh` stuff then clone this repo and run `./install.sh`.
 This route *does nothing*, it just outputs what it would do and tells you how
 to then do it yourself.
 
-## Upgrade Script
+## Outdated Script
 
-Everything can be upgraded by running:
+Check for outdated installs and upgrade what needs it by running:
 
 ```sh
-$ upgrade
+$ outdated
 ```
 
 - Managed packaging ecosystems are asked to update themselves.

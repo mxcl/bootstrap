@@ -97,12 +97,12 @@ emit_installable_function() {
   printf '}\n'
 }
 
-emit_upgrade() {
-  local upgrade_in="$1"
-  local target="/usr/local/bin/upgrade"
+emit_outdated() {
+  local outdated_in="$1"
+  local target="/usr/local/bin/outdated"
 
   printf "cat << 'EOF' > %q\n" "${target}"
-  cat "${upgrade_in}"
+  cat "${outdated_in}"
   printf '\n'
 
   emit_without_shell_header "${script_dir}/outdated/lib.sh"
@@ -134,22 +134,15 @@ emit_upgrade() {
     printf 'fi\n'
   done
 
-  printf '\nemit_stage_cleanup\n'
+  printf '\napply_root_commands\n'
   printf '}\n\n'
   cat <<'EOS'
-if [ -n "${UPGRADE_SPIN_WORKER:-}" ]; then
-  run_upgrade "$@"
-elif [ "${VERBOSE}" = "1" ] || ! command -v gum >/dev/null 2>&1; then
-  run_upgrade "$@"
-else
-  run_with_spinner "$@"
-fi
-
-emit_queued_root_commands
+run_outdated "$@"
 EOS
 
   printf 'EOF\n'
   printf 'chmod 755 %q\n' "${target}"
+  printf 'rm -f %q\n' "/usr/local/bin/upgrade"
 }
 
 echo '# Runnables'
@@ -183,7 +176,7 @@ for X in "$script_dir"/runnables/*; do
   esac
 done
 
-emit_upgrade "${script_dir}/upgrade.sh.in"
+emit_outdated "${script_dir}/outdated.sh.in"
 
 if ! [ -x /Library/Developer/CommandLineTools/usr/bin/git ]; then
   echo

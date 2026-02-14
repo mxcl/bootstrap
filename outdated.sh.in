@@ -1,0 +1,86 @@
+#!/bin/sh
+set -e
+
+if [ "$(id -u)" -eq 0 ]; then
+  echo "panic: do not run as root" >&2
+  exit 1
+fi
+
+log_section() {
+  if command -v gum >/dev/null 2>&1; then
+    gum format "# $1"
+  else
+    printf '# %s\n' "$1"
+  fi
+}
+
+set_step_title() {
+  log_section "$1"
+}
+
+begin_root_script() {
+  ROOT_SCRIPT="${UPGRADE_STAGE_DIR}/root.sh"
+  cat >"${ROOT_SCRIPT}" <<'EOF'
+#!/bin/sh
+set -e
+
+apply_root_updates() {
+EOF
+  ROOT_COMMANDS_QUEUED=0
+}
+
+emit_root() {
+  ROOT_COMMANDS_QUEUED=1
+
+  sep=""
+  printf '  ' >>"${ROOT_SCRIPT}"
+  for arg in "$@"; do
+    escaped="$(printf '%s' "${arg}" | /usr/bin/sed "s/'/'\\\\''/g")"
+    printf "%s'%s'" "${sep}" "${escaped}" >>"${ROOT_SCRIPT}"
+    sep=" "
+  done
+  printf '\n' >>"${ROOT_SCRIPT}"
+}
+
+apply_root_commands() {
+  cat >>"${ROOT_SCRIPT}" <<'EOF'
+}
+
+apply_root_updates "$@"
+EOF
+
+  chmod 700 "${ROOT_SCRIPT}"
+
+  if [ "${ROOT_COMMANDS_QUEUED}" -eq 0 ]; then
+    return 0
+  fi
+
+  set_step_title "Applying privileged updates"
+  sudo "${ROOT_SCRIPT}"
+}
+
+run_outdated() {
+  UPGRADE_STAGE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/upgrade.XXXXXX")"
+  if ! [ -d "${UPGRADE_STAGE_DIR}" ]; then
+    echo "panic: failed to create staging directory" >&2
+    exit 1
+  fi
+  trap 'rm -rf "${UPGRADE_STAGE_DIR}"' EXIT
+
+  set_step_title "Staging in ${UPGRADE_STAGE_DIR}"
+  begin_root_script
+  _SUDO=emit_root
+
+  if [ -x "/opt/homebrew/bin/brew" ]; then
+    set_step_title "Updating Homebrew"
+    /opt/homebrew/bin/brew update
+    /opt/homebrew/bin/brew upgrade
+  fi
+
+  set_step_title "Updating Pythons"
+  /usr/local/bin/uv python upgrade
+
+  if [ -x "$HOME/.cargo/bin/cargo" ]; then
+    set_step_title "Updating Rust"
+    "$HOME/.cargo/bin/rustup" update
+  fi
