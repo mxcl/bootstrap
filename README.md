@@ -1,6 +1,7 @@
 # mxcl’s Bootstrap
 
-A package manager *manager* and other mad shit for science.
+A package manager *manager* and other mad shit for science that just uses
+POSIX shell scripts and other tools.
 
 * Python managed by `uv`
   * `/usr/local/bin/python3.9`—`python3.13` are little shims that delegate
