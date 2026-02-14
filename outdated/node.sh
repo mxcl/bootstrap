@@ -10,7 +10,14 @@ bin="/usr/local/bin/node"
 
 latest="$(
   curl -fsSL https://nodejs.org/dist/index.json |
-    /usr/bin/jq -r '.[0].version'
+    /usr/bin/awk '
+      match($0, /"version"[[:space:]]*:[[:space:]]*"[^"]+"/) {
+        value = substr($0, RSTART, RLENGTH)
+        sub(/^.*:[[:space:]]*"/, "", value)
+        sub(/"$/, "", value)
+        print value
+        exit
+      }'
 )"
 
 if [ -z "${latest}" ] || [ "${latest}" = "null" ]; then

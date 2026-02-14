@@ -51,7 +51,14 @@ latest_tag() {
   repo="$1"
   tag="$(
     curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" |
-      /usr/bin/jq -r '.tag_name'
+      /usr/bin/awk '
+        match($0, /"tag_name"[[:space:]]*:[[:space:]]*"[^"]+"/) {
+          value = substr($0, RSTART, RLENGTH)
+          sub(/^.*:[[:space:]]*"/, "", value)
+          sub(/"$/, "", value)
+          print value
+          exit
+        }'
   )"
 
   if [ -z "${tag}" ] || [ "${tag}" = "null" ]; then

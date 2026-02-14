@@ -9,18 +9,7 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "${script_path}")" && pwd)"
 repo="mxcl/yoink"
 bin="/usr/local/bin/yoink"
 
-yoink_bin="/usr/local/bin/yoink"
-if ! [ -x "${yoink_bin}" ]; then
-  if command -v yoink >/dev/null 2>&1; then
-    yoink_bin="$(command -v yoink)"
-  else
-    latest="$(latest_tag "${repo}")"
-  fi
-fi
-
-if [ -x "${yoink_bin}" ]; then
-  latest="$("${yoink_bin}" -jI "${repo}" | /usr/bin/jq -r '.tag')"
-fi
+latest="$(latest_tag "${repo}")"
 
 if [ -z "${latest:-}" ] || [ "${latest}" = "null" ]; then
   echo "Unable to determine latest release for ${repo}" >&2

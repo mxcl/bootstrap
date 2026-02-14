@@ -9,7 +9,14 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "${script_path}")" && pwd)"
 bin="/usr/local/bin/aws"
 latest="$(
   curl -fsSL https://formulae.brew.sh/api/formula/awscli.json |
-    /usr/bin/jq -r '.versions.stable'
+    /usr/bin/awk '
+      match($0, /"stable"[[:space:]]*:[[:space:]]*"[^"]+"/) {
+        value = substr($0, RSTART, RLENGTH)
+        sub(/^.*:[[:space:]]*"/, "", value)
+        sub(/"$/, "", value)
+        print value
+        exit
+      }'
 )"
 
 if [ -z "${latest}" ] || [ "${latest}" = "null" ]; then

@@ -27,6 +27,23 @@ list_installables() {
   done
 }
 
+list_outdated_checks() {
+  if [ -f "${script_dir}/outdated/yoink.sh" ]; then
+    printf '%s\n' "${script_dir}/outdated/yoink.sh"
+  fi
+  for x in "${script_dir}"/outdated/*.sh; do
+    if ! [ -e "${x}" ]; then
+      continue
+    fi
+    case "$(basename "${x}")" in
+    lib.sh|yoink.sh)
+      continue
+      ;;
+    esac
+    printf '%s\n' "${x}"
+  done
+}
+
 if [ "${1:-}" = "--list-installables" ]; then
   list_installables
   exit 0
@@ -108,31 +125,25 @@ emit_outdated() {
 
   emit_without_shell_header "${script_dir}/outdated/lib.sh"
 
-  for outdated in "${script_dir}"/outdated/*.sh; do
+  while IFS= read -r outdated; do
     base="$(basename "${outdated}")"
-    if [ "${base}" = "lib.sh" ]; then
-      continue
-    fi
     name="${base%.*}"
     emit_outdated_function "outdated_${name}" "${outdated}"
-  done
+  done < <(list_outdated_checks)
 
   for installable in "${script_dir}"/installables/*.sh; do
     name="$(basename "${installable%.*}")"
     emit_installable_function "install_${name}" "${installable}"
   done
 
-  for outdated in "${script_dir}"/outdated/*.sh; do
+  while IFS= read -r outdated; do
     base="$(basename "${outdated}")"
-    if [ "${base}" = "lib.sh" ]; then
-      continue
-    fi
     name="${base%.*}"
     printf '\nset_step_title "Checking %s"\n' "${name}"
     printf '\nif version="$(outdated_%s)"; then\n' "${name}"
     printf '  queue_install "%s" "${version}"\n' "${name}"
     printf 'fi\n'
-  done
+  done < <(list_outdated_checks)
 
   printf '\nemit_plan\n'
   printf '}\n\n'
@@ -183,38 +194,5 @@ done
 
 emit_outdated "${script_dir}/outdated.sh.in"
 
-if ! [ -x /Library/Developer/CommandLineTools/usr/bin/git ]; then
-  echo
-  echo '# Install Xcode Command Line Tools:'
-  printf 'xcode-select --install\n'
-fi
-
-echo
-echo '# Installables'
-while IFS= read -r installable; do
-  printf '%q\n' "${installable}"
-done < <(list_installables)
-
-if ! [ -d /opt/homebrew ]; then
-  echo
-  echo '# brew harnass'
-
-  user="${USER:-$(id -un)}"
-
-  echo 'install -d -o root -g wheel -m 0755 /opt/homebrew'
-  for x in \
-    bin etc include lib sbin opt Cellar Caskroom Frameworks \
-    share/zsh/site-functions var/homebrew/linked var/log
-  do
-    echo "mkdir -p /opt/homebrew/$x"
-  done
-
-  echo "chown -R $user:admin /opt/homebrew"
-  echo "chmod -R ug=rwx,go=rx /opt/homebrew"
-  echo "chmod go-w /opt/homebrew/share/zsh /opt/homebrew/share/zsh/site-functions"
-
-  echo "chown -R $user:admin /opt/homebrew"
-fi
-
 printf '\n' >&2
-printf 'run: to apply, run: %q 2>/dev/null | sudo bash -exo pipefail\n' "${BASH_SOURCE[0]}" >&2
+printf '%s\n' 'outdated | sh' >&2
