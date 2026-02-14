@@ -48,14 +48,15 @@ to then do it yourself.
 
 ## Outdated Script
 
-Check for outdated installs and upgrade what needs it by running:
+Check for outdated installs and upgrade only what needs it by running:
 
 ```sh
 $ outdated
 ```
 
-- Managed packaging ecosystems are asked to update themselves.
-- Binaries we manage ourselves are upgraded by ourself.
+- Each managed item is checked for outdated status first.
+- Downloads and staging happen in a temporary directory.
+- Privileged filesystem changes are applied in one `sudo` call.
 
 ## `/usr/local/bin`
 

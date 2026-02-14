@@ -6,7 +6,7 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 RUNNABLES_DIR="${ROOT}/runnables"
 OUTDATED_DIR="${ROOT}/outdated"
 INSTALLABLES_DIR="${ROOT}/installables"
-UPGRADE_TEMPLATE="${ROOT}/upgrade.sh.in"
+OUTDATED_TEMPLATE="${ROOT}/outdated.sh.in"
 OUTPUT="${1:-${ROOT}/setup.sh}"
 OUTPUT_DIR=$(dirname "${OUTPUT}")
 
@@ -15,7 +15,7 @@ PYTHON_VERSIONS="3.10 3.11 3.12 3.13"
 DELIMITER="__BOOTSTRAP_SCRIPT_EOF__"
 
 for search_path in "${RUNNABLES_DIR}" "${OUTDATED_DIR}" "${INSTALLABLES_DIR}" \
-  "${UPGRADE_TEMPLATE}"
+  "${OUTDATED_TEMPLATE}"
 do
   if grep -R -n "^${DELIMITER}$" "${search_path}" >/dev/null 2>&1; then
     printf '%s\n' "make-setup: delimiter collision: ${DELIMITER}" >&2
@@ -98,8 +98,8 @@ emit_installable_function() {
   printf '}\n'
 }
 
-emit_upgrade_content() {
-  cat "${UPGRADE_TEMPLATE}"
+emit_outdated_content() {
+  cat "${OUTDATED_TEMPLATE}"
   printf '\n'
 
   emit_without_shell_header "${OUTDATED_DIR}/lib.sh"
@@ -124,11 +124,16 @@ emit_upgrade_content() {
       continue
     fi
     name="${base%.*}"
-    printf '\ngum format "# Checking %s"\n' "${name}"
+    printf '\nset_step_title "Checking %s"\n' "${name}"
     printf '\nif version="$(outdated_%s)"; then\n' "${name}"
+    printf '  set_step_title "Updating %s"\n' "${name}"
     printf '  install_%s "${version}"\n' "${name}"
     printf 'fi\n'
   done
+
+  printf '\napply_root_commands\n'
+  printf '}\n\n'
+  printf 'run_outdated "$@"\n'
 }
 
 mkdir -p "${OUTPUT_DIR}"
@@ -219,12 +224,14 @@ ${DELIMITER}
 install_python
 install_pip
 
-write_stub "\${TARGET_DIR}/upgrade" <<'${DELIMITER}'
+write_stub "\${TARGET_DIR}/outdated" <<'${DELIMITER}'
 HEADER
-  emit_upgrade_content
+  emit_outdated_content
   cat <<HEADER
 ${DELIMITER}
 HEADER
+
+  rm -f "\${TARGET_DIR}/upgrade"
 
   for installable in "${INSTALLABLES[@]}"; do
     cat <<HEADER
