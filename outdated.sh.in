@@ -7,6 +7,9 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 GUM_BIN="$(command -v gum 2>/dev/null || true)"
+if [ -n "${GUM_BIN}" ] && ! "${GUM_BIN}" --version >/dev/null 2>&1; then
+  GUM_BIN=
+fi
 OUTDATED_SELF="$0"
 
 case "${OUTDATED_SELF}" in
