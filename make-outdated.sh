@@ -102,6 +102,8 @@ for installable in "${script_dir}"/installables/*.sh; do
   emit_installable_function "install_${name}" "${installable}"
 done
 
+printf '\nif [ "${OUTDATED_BOOTSTRAP_ONLY:-0}" -ne 1 ]; then\n'
+
 while IFS= read -r outdated; do
   base="$(basename "${outdated}")"
   name="${base%.*}"
@@ -111,10 +113,14 @@ while IFS= read -r outdated; do
   printf 'fi\n'
 done < <(list_outdated_checks)
 
-printf '\nemit_plan\n'
+printf '\n  emit_plan\n'
+printf 'fi\n'
 printf '}\n\n'
 cat <<'EOF'
-if [ "${1:-}" = "--apply" ]; then
+if [ "${1:-}" = "--internal-run" ]; then
+  shift
+  run_internal "$@"
+elif [ "${1:-}" = "--apply" ]; then
   shift
   run_apply "$@"
 else

@@ -7,6 +7,25 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 GUM_BIN="$(command -v gum 2>/dev/null || true)"
+OUTDATED_SELF="$0"
+
+case "${OUTDATED_SELF}" in
+  */*)
+    ;;
+  *)
+    resolved_self="$(command -v "${OUTDATED_SELF}" 2>/dev/null || true)"
+    if [ -n "${resolved_self}" ]; then
+      OUTDATED_SELF="${resolved_self}"
+    fi
+    ;;
+esac
+
+if ! [ -x "${OUTDATED_SELF}" ]; then
+  resolved_self="$(command -v outdated 2>/dev/null || true)"
+  if [ -n "${resolved_self}" ]; then
+    OUTDATED_SELF="${resolved_self}"
+  fi
+fi
 
 gum() {
   if [ -n "${GUM_BIN}" ]; then
@@ -14,27 +33,75 @@ gum() {
   fi
 }
 
+is_internal_command() {
+  case "$1" in
+    uv_python_upgrade_available|rustup_upgrade_available|outdated_*|install_*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+run_internal() {
+  target="${1:-}"
+  if [ -z "${target}" ]; then
+    echo "panic: missing internal target" >&2
+    exit 1
+  fi
+  shift
+
+  if ! is_internal_command "${target}"; then
+    echo "panic: unknown internal target: ${target}" >&2
+    exit 1
+  fi
+
+  case "${target}" in
+    outdated_*|install_*)
+      OUTDATED_BOOTSTRAP_ONLY=1
+      run_outdated >/dev/null
+      ;;
+  esac
+
+  "${target}" "$@"
+}
+
 run_step() {
   title="$1"
   shift
+  command_name="$1"
+  shift
 
   if [ -n "${GUM_BIN}" ]; then
-    gum spin --title "${title}" -- "$@"
+    if is_internal_command "${command_name}"; then
+      gum spin --title "${title}" -- "${OUTDATED_SELF}" --internal-run \
+        "${command_name}" "$@"
+    else
+      gum spin --title "${title}" -- "${command_name}" "$@"
+    fi
   else
     printf '# %s\n' "${title}" >&2
-    "$@"
+    "${command_name}" "$@"
   fi
 }
 
 run_step_capture() {
   title="$1"
   shift
+  command_name="$1"
+  shift
 
   if [ -n "${GUM_BIN}" ]; then
-    gum spin --show-output --title "${title}" -- "$@"
+    if is_internal_command "${command_name}"; then
+      gum spin --show-output --title "${title}" -- "${OUTDATED_SELF}" \
+        --internal-run "${command_name}" "$@"
+    else
+      gum spin --show-output --title "${title}" -- "${command_name}" "$@"
+    fi
   else
     printf '# %s\n' "${title}" >&2
-    "$@"
+    "${command_name}" "$@"
   fi
 }
 
@@ -368,22 +435,24 @@ run_outdated() {
   APPLY_ARGS=""
   PLAN_HAS_ACTION=0
 
-  if [ -x "/opt/homebrew/bin/brew" ]; then
-    if run_step "Checking Homebrew" /bin/sh -c \
-      '[ -n "$(/opt/homebrew/bin/brew outdated 2>/dev/null)" ]'
-    then
-      queue_brew_upgrade
+  if [ "${OUTDATED_BOOTSTRAP_ONLY:-0}" -ne 1 ]; then
+    if [ -x "/opt/homebrew/bin/brew" ]; then
+      if run_step "Checking Homebrew" /bin/sh -c \
+        '[ -n "$(/opt/homebrew/bin/brew outdated 2>/dev/null)" ]'
+      then
+        queue_brew_upgrade
+      fi
     fi
-  fi
 
-  if [ -x "/usr/local/bin/uv" ]; then
-    if run_step "Checking Pythons" uv_python_upgrade_available; then
-      queue_uv_python_upgrade
+    if [ -x "/usr/local/bin/uv" ]; then
+      if run_step "Checking Pythons" uv_python_upgrade_available; then
+        queue_uv_python_upgrade
+      fi
     fi
-  fi
 
-  if [ -x "$HOME/.cargo/bin/rustup" ]; then
-    if run_step "Checking Rust" rustup_upgrade_available; then
-      queue_rustup_upgrade
+    if [ -x "$HOME/.cargo/bin/rustup" ]; then
+      if run_step "Checking Rust" rustup_upgrade_available; then
+        queue_rustup_upgrade
+      fi
     fi
   fi
