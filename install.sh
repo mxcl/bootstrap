@@ -33,11 +33,8 @@ fi
 
 emit_outdated_install_commands() {
   local target="/usr/local/bin/outdated"
-  local heredoc_delim="__BOOTSTRAP_OUTDATED_SCRIPT_EOF__"
 
-  printf "cat << '%s' > %q\n" "${heredoc_delim}" "${target}"
-  "${script_dir}/make-outdated.sh"
-  printf '%s\n' "${heredoc_delim}"
+  printf '%q > %q\n' "${script_dir}/make-outdated.sh" "${target}"
   printf 'chmod 755 %q\n' "${target}"
 }
 
