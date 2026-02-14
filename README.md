@@ -42,12 +42,18 @@ POSIX shell scripts and other tools.
 ```sh
 curl -Ssf https://mxcl.dev/bootstrap/setup.sh |
   sudo bash -exo pipefail &&
-  outdated --apply
+  outdated | sh
 ```
+
+The curl one-liner installs our stubs and the `outdated` script. Thus you
+then run `outdated | sh` to install everything else.
 
 Or if you hate `curl | sh` stuff then clone this repo and run `./install.sh`.
 This route *does nothing*, it just outputs what it would do and tells you how
 to then do it yourself.
+
+The same applies to `outdated`—by default it has no side effects and just
+prepares any available updates for you to review and apply.
 
 ## Outdated Script
 
