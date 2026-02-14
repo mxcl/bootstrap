@@ -26,7 +26,15 @@ done
 
 # Keep installable ordering in sync with install.sh.
 list_installables() {
-  "${ROOT}/install.sh" --list-installables
+  "${ROOT}/install.sh" --list-installables |
+    while IFS= read -r installable; do
+      case "$(basename "${installable}")" in
+        aws.sh)
+          continue
+          ;;
+      esac
+      printf '%s\n' "${installable}"
+    done
 }
 
 INSTALLABLES=()
