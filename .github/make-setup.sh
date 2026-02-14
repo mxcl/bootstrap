@@ -7,6 +7,7 @@ RUNNABLES_DIR="${ROOT}/runnables"
 OUTDATED_DIR="${ROOT}/outdated"
 INSTALLABLES_DIR="${ROOT}/installables"
 OUTDATED_TEMPLATE="${ROOT}/outdated.sh.in"
+MAKE_OUTDATED="${ROOT}/make-outdated.sh"
 OUTPUT="${1:-${ROOT}/setup.sh}"
 OUTPUT_DIR=$(dirname "${OUTPUT}")
 
@@ -15,7 +16,7 @@ PYTHON_VERSIONS="3.10 3.11 3.12 3.13"
 DELIMITER="__BOOTSTRAP_SCRIPT_EOF__"
 
 for search_path in "${RUNNABLES_DIR}" "${OUTDATED_DIR}" "${INSTALLABLES_DIR}" \
-  "${OUTDATED_TEMPLATE}"
+  "${OUTDATED_TEMPLATE}" "${MAKE_OUTDATED}"
 do
   if grep -R -n "^${DELIMITER}$" "${search_path}" >/dev/null 2>&1; then
     printf '%s\n' "make-setup: delimiter collision: ${DELIMITER}" >&2
@@ -43,103 +44,8 @@ emit_without_shell_header() {
   ' "$file"
 }
 
-emit_outdated_function() {
-  local name="$1"
-  local file="$2"
-
-  printf '\n%s() {\n' "$name"
-  /usr/bin/awk '
-    NR == 1 && /^#!/ { next }
-    /^set -euo pipefail$/ { next }
-    /^script_path=/ { next }
-    /^script_dir=/ { next }
-    /script_dir/ { next }
-    {
-      sub(/exit /, "return ")
-      if ($0 == "") { print ""; next }
-      print "  " $0
-    }
-  ' "$file"
-  printf '}\n'
-}
-
-emit_installable_function() {
-  local name="$1"
-  local file="$2"
-
-  printf '\n%s() {\n' "$name"
-  printf '  version="$1"\n'
-  /usr/bin/awk '
-    NR == 1 && /^#!/ { next }
-    /^set -euo pipefail$/ { next }
-    /^script_path=/ { next }
-    /^script_dir=/ { next }
-    /^outdated_script=/ { next }
-    /^if ! version=/ { skipping = 1; next }
-    /^version=/ {
-      skipping_version = 1
-      if ($0 ~ /\)"$/) { skipping_version = 0 }
-      next
-    }
-    skipping {
-      if ($0 ~ /^fi$/) { skipping = 0 }
-      next
-    }
-    skipping_version {
-      if ($0 ~ /\)"$/) { skipping_version = 0 }
-      next
-    }
-    {
-      sub(/exit /, "return ")
-      if ($0 == "") { print ""; next }
-      print "  " $0
-    }
-  ' "$file"
-  printf '}\n'
-}
-
 emit_outdated_content() {
-  cat "${OUTDATED_TEMPLATE}"
-  printf '\n'
-
-  emit_without_shell_header "${OUTDATED_DIR}/lib.sh"
-
-  for outdated in "${OUTDATED_DIR}"/*.sh; do
-    base="$(basename "${outdated}")"
-    if [ "${base}" = "lib.sh" ]; then
-      continue
-    fi
-    name="${base%.*}"
-    emit_outdated_function "outdated_${name}" "${outdated}"
-  done
-
-  for installable in "${INSTALLABLES[@]}"; do
-    name="$(basename "${installable%.*}")"
-    emit_installable_function "install_${name}" "${installable}"
-  done
-
-  for outdated in "${OUTDATED_DIR}"/*.sh; do
-    base="$(basename "${outdated}")"
-    if [ "${base}" = "lib.sh" ]; then
-      continue
-    fi
-    name="${base%.*}"
-    printf '\nset_step_title "Checking %s"\n' "${name}"
-    printf '\nif version="$(outdated_%s)"; then\n' "${name}"
-    printf '  queue_install "%s" "${version}"\n' "${name}"
-    printf 'fi\n'
-  done
-
-  printf '\nemit_plan\n'
-  printf '}\n\n'
-  cat <<'EOF'
-if [ "${1:-}" = "--apply" ]; then
-  shift
-  run_apply "$@"
-else
-  run_outdated "$@"
-fi
-EOF
+  "${MAKE_OUTDATED}"
 }
 
 mkdir -p "${OUTPUT_DIR}"
@@ -236,8 +142,6 @@ HEADER
   cat <<HEADER
 ${DELIMITER}
 HEADER
-
-  rm -f "\${TARGET_DIR}/upgrade"
 
   for installable in "${INSTALLABLES[@]}"; do
     cat <<HEADER
